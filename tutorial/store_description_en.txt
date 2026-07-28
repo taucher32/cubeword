@@ -1,0 +1,24 @@
+SHORT DESCRIPTION (max 80 characters):
+Rotate cubes, find the hidden word! A fast, fun word puzzle game.
+
+---
+
+FULL DESCRIPTION (max 4000 characters):
+
+Cubeword — a fast, addictive word puzzle where you rotate cubes to reveal hidden letters and uncover the secret word!
+
+HOW TO PLAY
+Tap each cube to rotate through its letters, build the target word from the revealed letters, and submit your guess. Score points for every correct word, and chain correct guesses together to multiply your score with combos.
+
+FEATURES:
+• Simple, intuitive rotate mechanic — each cube has a limited number of rotations, so every tap counts
+• Joker cubes — build a combo streak and earn special cubes that already show the correct letter
+• Hint cubes — on select rounds, a helper cube jumps straight to the correct letter on your first tap
+• Combo system — chain correct words in a row to double or even triple your score
+• Rising difficulty — Easy, Medium, and Hard rounds keep the challenge growing
+• High score tracking — beat your personal best and track your stats (total score, rounds played, best combo)
+• Watch a short video for bonus rotations
+• Two languages — play in Turkish or English
+• No personal data collected beyond standard ad services — your game data stays on your device
+
+Perfect for word game fans who want a quick, satisfying brain workout. Download now, rotate the cubes, and find the hidden word!

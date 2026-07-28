@@ -1,0 +1,24 @@
+KISA AÇIKLAMA (max 80 karakter):
+Küpleri döndür, gizli kelimeyi bul! Hızlı ve eğlenceli kelime bulmacası.
+
+---
+
+UZUN AÇIKLAMA (max 4000 karakter):
+
+Cubeword — küpleri döndürerek gizli kelimeyi bulduğun, hızlı ve bağımlılık yapan bir kelime bulmacası oyunu!
+
+NASIL OYNANIR?
+Her küpü döndürerek üzerindeki harfi değiştir, hedef kelimeyi oluşturacak harfleri bul ve kelimeni gönder. Doğru tahmin ettikçe skorun artar, art arda doğru kelimeler bulduğunda kombo çarpanı devreye girer.
+
+ÖZELLİKLER:
+• Basit ve sezgisel döndürme mekaniği — her küpün sınırlı dönüş hakkı var, stratejik düşünmen gerekiyor
+• Joker küpler — kombo zincirin uzadıkça otomatik doğru harfi gösteren özel küpler kazanırsın
+• İpucu küpleri — belirli turlarda ilk dokunuşta doğru harfe atlayan yardımcı küpler
+• Kombo sistemi — art arda doğru kelimeler bularak skorunu 2 katına, hatta 3 katına çıkar
+• Artan zorluk — Kolay, Orta ve Zor seviyelerle oyun senin gelişimine göre zorlaşır
+• Yüksek skor takibi — kendi rekorunu kır, istatistiklerini (toplam skor, oynanan tur, en yüksek combo) takip et
+• Reklam izleyerek bonus dönüş hakkı kazan
+• İki dil desteği — Türkçe ve İngilizce arasında seçim yapabilirsin
+• Reklam servisleri dışında hiçbir kişisel veri toplanmaz, oyun verilerin sadece cihazında saklanır
+
+Kelime dağarcığını geliştirmek, refleksini güçlendirmek ve eğlenceli vakit geçirmek isteyenler için tasarlandı. Şimdi indir, küpleri döndür ve gizli kelimeyi bul!
