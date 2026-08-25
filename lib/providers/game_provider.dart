@@ -480,6 +480,10 @@ class GameProvider extends ChangeNotifier {
   }
 
   bool submitWord() {
+    // Hedef zaten bulunduysa tur bitmiştir — nextRound() çağrılana kadar
+    // tekrar puan verilmemeli (aksi halde submit'e basıp durarak sonsuz puan alınır).
+    if (_isTargetRevealed) return false;
+
     if (List.generate(targetLength, (col) => _grid[wordRow][col])
         .any((cube) => cube == null)) {
       _statusMessage = _t(
@@ -502,6 +506,15 @@ class GameProvider extends ChangeNotifier {
           ? _t('$word sözlükte yok. Combo sıfırlandı!',
               '$word is not in the dictionary. Combo reset!')
           : _t('$word sözlükte yok.', '$word is not in the dictionary.');
+      notifyListeners();
+      _soundService.play(SfxKey.invalid);
+      _haptic(HapticFeedback.heavyImpact);
+      return false;
+    }
+
+    if (word != targetWord && _submittedWords.contains(word)) {
+      _statusMessage = _t('$word için zaten puan aldın.',
+          'You already scored points for $word.');
       notifyListeners();
       _soundService.play(SfxKey.invalid);
       _haptic(HapticFeedback.heavyImpact);

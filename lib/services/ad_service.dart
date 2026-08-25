@@ -52,19 +52,19 @@ class AdService {
   }) {
     final ad = _rewardedAd;
     if (ad == null) return;
+    // Gösterim başlar başlamaz temizle — aksi halde kullanıcı butona art arda
+    // basarsa aynı reklam nesnesi tekrar show() edilip ödül birden fazla verilir.
+    _rewardedAd = null;
+    onStateChanged?.call(false);
 
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
-        _rewardedAd = null;
-        onStateChanged?.call(false);
         loadRewardedAd(onStateChanged: onStateChanged);
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         debugPrint('Reklam gösterilemedi: ${error.message}');
         ad.dispose();
-        _rewardedAd = null;
-        onStateChanged?.call(false);
         loadRewardedAd(onStateChanged: onStateChanged);
       },
     );
