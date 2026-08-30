@@ -92,7 +92,7 @@ class _GameScreenState extends State<GameScreen> {
       case 'absent':
         return Colors.red.shade300;
       case 'inactive':
-        // Hedef kelimeden kisa turlarda kullanilmayan sutun
+        // Hedef kelimeden kısa turlarda kullanılmayan sütun
         return Colors.grey.shade300;
       default:
         return Colors.amber.shade100;

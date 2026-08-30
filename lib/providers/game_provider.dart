@@ -199,19 +199,19 @@ class GameProvider extends ChangeNotifier {
       _isTargetRevealed ? targetWord : List.filled(targetLength, '*').join();
   int targetRotationCountAt(int col) => _targetRotationCounts[col];
 
-  /// Kup hangi satirda olursa olsun bulunur (kelime satirindaki kupler
-  /// "Satiri Temizle" ile geri alinabildigi icin hala cevrilebilir sayilir).
+  /// Küp hangi satırda olursa olsun bulunur (kelime satırındaki küpler
+  /// "Satırı Temizle" ile geri alınabildiği için hâlâ çevrilebilir sayılır).
   Cube? _cubeAt(int col) => _grid[spawnRow][col] ?? _grid[wordRow][col];
 
-  /// Hicbir sutun kalan donus hakkiyla hedef harfe ulasamiyorsa tur
+  /// Hiçbir sütun kalan dönüş hakkıyla hedef harfe ulaşamıyorsa tur
   /// tamamlanamaz. Kup 6 yuzlu ve hak da en fazla 6 oldugu icin hedefi bir kez
-  /// gecen sutun bir daha geri donemez -> tek yanlis dokunus turu kilitliyordu.
+  /// geçen sütun bir daha geri dönemez; tek yanlış dokunuş turu kilitliyordu.
   bool get isRoundStuck {
     if (_isTargetRevealed) return false;
     for (var col = 0; col < targetLength; col++) {
       final cube = _cubeAt(col);
       if (cube == null) continue;
-      // Ipucu kupu her zaman bedavaya hedefe atlayabilir
+      // İpucu küpü her zaman bedavaya hedefe atlayabilir
       if (cube.type == CubeType.hint) continue;
       final needed = (_targetRotationCounts[col] - cube.topFaceIndex) %
           cube.faces.length;
@@ -224,7 +224,7 @@ class GameProvider extends ChangeNotifier {
         (col) => _grid[wordRow][col]?.currentLetter ?? '_',
       ).join();
 
-  /// Hedef uzunlugunun otesindeki sutunlar bu turda oynanmaz.
+  /// Hedef uzunluğunun ötesindeki sütunlar bu turda oynanmaz.
   bool isPlayableCol(int col) => col >= 0 && col < targetLength;
 
   // --- Arayüz metinleri (dile göre) ---
@@ -239,9 +239,9 @@ class GameProvider extends ChangeNotifier {
   String get submitWordLabel => _t('Kelime Gönder', 'Submit Word');
   String get clearRowLabel => _t('Satırı Temizle', 'Clear Row');
   String get nextRoundLabel => _t('Yeni Tur', 'Next Round');
-  String get skipRoundLabel => _t('Turu Pas Gec', 'Skip Round');
+  String get skipRoundLabel => _t('Turu Pas Geç', 'Skip Round');
   String get roundStuckMessage => _t(
-        'Bu tur artik tamamlanamaz. Reklam izleyip ek hak al ya da turu pas gec.',
+        'Bu tur artık tamamlanamaz. Reklam izleyip ek hak al ya da turu pas geç.',
         'This round can no longer be completed. Watch an ad for extra rotations or skip the round.',
       );
   String get statisticsTooltip => _t('İstatistikler', 'Statistics');
@@ -370,8 +370,8 @@ class GameProvider extends ChangeNotifier {
 
     final specialCols = _pickSpecialCubeCols();
 
-    // Sadece hedef uzunlugu kadar sutunda kup dogar; kalan sutunlar bu turda
-    // oynanmaz (eskiden oraya da kup dogup indirilebiliyor ama yok sayiliyordu).
+    // Sadece hedef uzunluğu kadar sütunda küp doğar; kalan sütunlar bu turda
+    // oynanmaz (eskiden oraya da küp doğup indirilebiliyor ama yok sayılıyordu).
     for (var col = 0; col < targetLength; col++) {
       final type = specialCols[col] ?? CubeType.normal;
       _grid[spawnRow][col] = _buildCube(targetWord[col], col, type);
@@ -405,10 +405,10 @@ class GameProvider extends ChangeNotifier {
   }
 
   List<int> _buildTargetRotationCounts() {
-    // Hedef harfe ulasmak icin gereken donus sayisi, o turdaki donus hakkini
-    // asamaz; asarsa o sutun asla dogru harfe getirilemez ve tur kazanilamaz.
+    // Hedef harfe ulaşmak için gereken dönüş sayısı, o turdaki dönüş hakkını
+    // aşamaz; aşarsa o sütun asla doğru harfe getirilemez ve tur kazanılamaz.
     // (Zor turlarda hak 4 iken burasi 5 uretebiliyordu.)
-    // Ust sinir 5: kup 6 yuzlu, gecerli yuz indeksleri 0..5.
+    // Üst sınır 5: küp 6 yüzlü, geçerli yüz indeksleri 0..5.
     final maxCount = min(5, _rotationsPerCube);
     return List<int>.generate(cols, (_) => _random.nextInt(maxCount) + 1);
   }
@@ -445,11 +445,11 @@ class GameProvider extends ChangeNotifier {
       return false;
     }
 
-    // Ipucu kupu: hedef harfe bedavaya atlar ve hedefteyken hic donmez —
+    // İpucu küpü: hedef harfe bedavaya atlar ve hedefteyken hiç dönmez —
     // aksi halde fazladan dokunus dogru harfi kacirip hak yakiyordu.
     if (cube.type == CubeType.hint) {
       if (cube.topFaceIndex == _targetRotationCounts[col]) {
-        _statusMessage = _t('Ipucu kupu zaten hedef harfte.',
+        _statusMessage = _t('İpucu küpü zaten hedef harfte.',
             'The hint cube is already on the target letter.');
         notifyListeners();
         return false;
@@ -597,8 +597,8 @@ class GameProvider extends ChangeNotifier {
   }
 
   void nextRound() {
-    // Hedef bulunduysa normal ilerleme; bulunmadiysa yalnizca tur kilitlendiginde
-    // pas gecilebilir (puan yok, combo zinciri kirilir).
+    // Hedef bulunduysa normal ilerleme; bulunmadıysa yalnızca tur kilitlendiğinde
+    // pas geçilebilir (puan yok, combo zinciri kırılır).
     final skipped = !_isTargetRevealed;
     if (skipped && !isRoundStuck) return;
     if (skipped) _comboCount = 0;
@@ -619,8 +619,8 @@ class GameProvider extends ChangeNotifier {
   }
 
   void addBonusRotations(int count) {
-    // Her iki satir da: kelime satirina indirilmis kupler de bonusu almali,
-    // yoksa kupleri indirdikten sonra reklam izleyen oyuncu odulu kaybediyor.
+    // Her iki satır da: kelime satırına indirilmiş küpler de bonusu almalı,
+    // yoksa küpleri indirdikten sonra reklam izleyen oyuncu ödülü kaybediyor.
     for (var row = 0; row < rows; row++) {
       for (var col = 0; col < cols; col++) {
         _grid[row][col]?.rotationLimit += count;
