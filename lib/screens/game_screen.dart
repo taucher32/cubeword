@@ -91,6 +91,9 @@ class _GameScreenState extends State<GameScreen> {
         return Colors.amber.shade400;
       case 'absent':
         return Colors.red.shade300;
+      case 'inactive':
+        // Hedef kelimeden kisa turlarda kullanilmayan sutun
+        return Colors.grey.shade300;
       default:
         return Colors.amber.shade100;
     }
@@ -125,8 +128,6 @@ class _GameScreenState extends State<GameScreen> {
                 '${provider.level}', Colors.blue),
             _statRow(Icons.check_circle, provider.labelTargetWords,
                 '${provider.targetWordsFound}', Colors.green),
-            _statRow(Icons.spellcheck, provider.labelValidWords,
-                '${provider.totalValidWords}', Colors.teal),
             _statRow(Icons.local_fire_department, provider.labelBestCombo,
                 '${provider.bestCombo}', Colors.orange),
             _statRow(Icons.rotate_right, provider.labelTotalRotations,
@@ -427,10 +428,13 @@ class _GameScreenState extends State<GameScreen> {
                                 OutlinedButton(
                                   style: OutlinedButton.styleFrom(
                                       enableFeedback: false),
-                                  onPressed: provider.isTargetRevealed
+                                  onPressed: provider.isTargetRevealed ||
+                                          provider.isRoundStuck
                                       ? provider.nextRound
                                       : null,
-                                  child: Text(provider.nextRoundLabel),
+                                  child: Text(provider.isRoundStuck
+                                      ? provider.skipRoundLabel
+                                      : provider.nextRoundLabel),
                                 ),
                               ],
                             ),
@@ -460,18 +464,21 @@ class _GameScreenState extends State<GameScreen> {
       children: List.generate(GameProvider.cols, (col) {
         final cube = provider.grid[row][col];
         final rollTicks = provider.rollTickAt(row, col);
+        final playable = provider.isPlayableCol(col);
         return Semantics(
           label: _cellSemanticsLabel(provider, col, cube, isWordRow),
           button: true,
           child: GestureDetector(
             key: Key('cell-$row-$col'),
-            onTap: () {
-              if (isWordRow) {
-                provider.dropCube(col);
-              } else {
-                provider.rotateCube(row, col);
-              }
-            },
+            onTap: !playable
+                ? null
+                : () {
+                    if (isWordRow) {
+                      provider.dropCube(col);
+                    } else {
+                      provider.rotateCube(row, col);
+                    }
+                  },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               width: cubeSize,
@@ -480,9 +487,14 @@ class _GameScreenState extends State<GameScreen> {
               decoration: isWordRow
                   ? BoxDecoration(
                       color: _wordRowCellColor(provider.wordRowCellState(col)),
-                      border: cube == null
-                          ? Border.all(color: Colors.orange, width: 1.5)
-                          : Border.all(color: Colors.black54, width: 1.5),
+                      border: Border.all(
+                        color: !playable
+                            ? Colors.grey.shade500
+                            : cube == null
+                                ? Colors.orange
+                                : Colors.black54,
+                        width: 1.5,
+                      ),
                     )
                   : _spawnCellDecoration(cube, rollTicks),
               alignment: Alignment.center,
@@ -509,7 +521,8 @@ class _GameScreenState extends State<GameScreen> {
                                     FadeTransition(opacity: anim, child: child),
                               ),
                       child: Text(
-                        cube?.currentLetter ?? (isWordRow ? '_' : ''),
+                        cube?.currentLetter ??
+                            (isWordRow && playable ? '_' : ''),
                         key: ValueKey(
                           isWordRow
                               ? 'w-$col-${cube?.currentLetter ?? "empty"}'
@@ -595,6 +608,11 @@ class _GameScreenState extends State<GameScreen> {
   String _cellSemanticsLabel(
       GameProvider provider, int col, Cube? cube, bool isWordRow) {
     final isEn = provider.isEnglish;
+    if (!provider.isPlayableCol(col)) {
+      return isEn
+          ? 'Column ${col + 1}, not used this round'
+          : 'Sütun ${col + 1}, bu turda kullanılmıyor';
+    }
     if (isWordRow) {
       if (cube == null) {
         return isEn

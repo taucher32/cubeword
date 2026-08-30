@@ -165,7 +165,6 @@ class GameProvider extends ChangeNotifier {
   int _score = 0;
   int _roundNumber = 1;
   int _comboCount = 0;
-  int _totalValidWords = 0;
   int _targetWordsFound = 0;
   int _bestCombo = 0;
   int _totalRotationsUsed = 0;
@@ -187,7 +186,6 @@ class GameProvider extends ChangeNotifier {
   int get level => _roundNumber;
   int get comboCount => _comboCount;
   int get comboMultiplier => _comboCount >= 4 ? 3 : (_comboCount >= 2 ? 2 : 1);
-  int get totalValidWords => _totalValidWords;
   int get targetWordsFound => _targetWordsFound;
   int get bestCombo => _bestCombo;
   int get totalRotationsUsed => _totalRotationsUsed;
@@ -200,10 +198,34 @@ class GameProvider extends ChangeNotifier {
   String get targetMask =>
       _isTargetRevealed ? targetWord : List.filled(targetLength, '*').join();
   int targetRotationCountAt(int col) => _targetRotationCounts[col];
+
+  /// Kup hangi satirda olursa olsun bulunur (kelime satirindaki kupler
+  /// "Satiri Temizle" ile geri alinabildigi icin hala cevrilebilir sayilir).
+  Cube? _cubeAt(int col) => _grid[spawnRow][col] ?? _grid[wordRow][col];
+
+  /// Hicbir sutun kalan donus hakkiyla hedef harfe ulasamiyorsa tur
+  /// tamamlanamaz. Kup 6 yuzlu ve hak da en fazla 6 oldugu icin hedefi bir kez
+  /// gecen sutun bir daha geri donemez -> tek yanlis dokunus turu kilitliyordu.
+  bool get isRoundStuck {
+    if (_isTargetRevealed) return false;
+    for (var col = 0; col < targetLength; col++) {
+      final cube = _cubeAt(col);
+      if (cube == null) continue;
+      // Ipucu kupu her zaman bedavaya hedefe atlayabilir
+      if (cube.type == CubeType.hint) continue;
+      final needed = (_targetRotationCounts[col] - cube.topFaceIndex) %
+          cube.faces.length;
+      if (needed > cube.rotationLimit) return true;
+    }
+    return false;
+  }
   String get currentWord => List.generate(
-        cols,
+        targetLength,
         (col) => _grid[wordRow][col]?.currentLetter ?? '_',
       ).join();
+
+  /// Hedef uzunlugunun otesindeki sutunlar bu turda oynanmaz.
+  bool isPlayableCol(int col) => col >= 0 && col < targetLength;
 
   // --- Arayüz metinleri (dile göre) ---
   String get roundLabel => _t('Tur', 'Round');
@@ -217,6 +239,11 @@ class GameProvider extends ChangeNotifier {
   String get submitWordLabel => _t('Kelime Gönder', 'Submit Word');
   String get clearRowLabel => _t('Satırı Temizle', 'Clear Row');
   String get nextRoundLabel => _t('Yeni Tur', 'Next Round');
+  String get skipRoundLabel => _t('Turu Pas Gec', 'Skip Round');
+  String get roundStuckMessage => _t(
+        'Bu tur artik tamamlanamaz. Reklam izleyip ek hak al ya da turu pas gec.',
+        'This round can no longer be completed. Watch an ad for extra rotations or skip the round.',
+      );
   String get statisticsTooltip => _t('İstatistikler', 'Statistics');
   String get resetGameTooltip => _t('Oyunu sıfırla', 'Reset game');
   String get statsDialogTitle => _t('Oyun İstatistikleri', 'Game Statistics');
@@ -224,7 +251,6 @@ class GameProvider extends ChangeNotifier {
   String get labelHighScore => _t('En Yüksek Skor', 'High Score');
   String get labelRoundsPlayed => _t('Oynanan Tur', 'Rounds Played');
   String get labelTargetWords => _t('Hedef Kelimeler', 'Target Words');
-  String get labelValidWords => _t('Geçerli Kelimeler', 'Valid Words');
   String get labelBestCombo => _t('En Yüksek Combo', 'Best Combo');
   String get labelTotalRotations => _t('Toplam Döndürme', 'Total Rotations');
   String get newGameLabel => _t('Yeni Oyun', 'New Game');
@@ -344,10 +370,11 @@ class GameProvider extends ChangeNotifier {
 
     final specialCols = _pickSpecialCubeCols();
 
-    for (var col = 0; col < cols; col++) {
-      final targetLetter = col < targetLength ? targetWord[col] : null;
+    // Sadece hedef uzunlugu kadar sutunda kup dogar; kalan sutunlar bu turda
+    // oynanmaz (eskiden oraya da kup dogup indirilebiliyor ama yok sayiliyordu).
+    for (var col = 0; col < targetLength; col++) {
       final type = specialCols[col] ?? CubeType.normal;
-      _grid[spawnRow][col] = _buildCube(targetLetter, col, type);
+      _grid[spawnRow][col] = _buildCube(targetWord[col], col, type);
     }
   }
 
@@ -365,7 +392,7 @@ class GameProvider extends ChangeNotifier {
     return result;
   }
 
-  Cube _buildCube(String? targetLetter, int col, CubeType type) {
+  Cube _buildCube(String targetLetter, int col, CubeType type) {
     final faces = _facesForTargetLetter(targetLetter, col);
     // Joker: zaten doğru harfi gösteriyor
     final startIndex = type == CubeType.joker ? _targetRotationCounts[col] : 0;
@@ -378,29 +405,28 @@ class GameProvider extends ChangeNotifier {
   }
 
   List<int> _buildTargetRotationCounts() {
-    return List<int>.generate(cols, (_) => _random.nextInt(5) + 1);
+    // Hedef harfe ulasmak icin gereken donus sayisi, o turdaki donus hakkini
+    // asamaz; asarsa o sutun asla dogru harfe getirilemez ve tur kazanilamaz.
+    // (Zor turlarda hak 4 iken burasi 5 uretebiliyordu.)
+    // Ust sinir 5: kup 6 yuzlu, gecerli yuz indeksleri 0..5.
+    final maxCount = min(5, _rotationsPerCube);
+    return List<int>.generate(cols, (_) => _random.nextInt(maxCount) + 1);
   }
 
-  List<String> _facesForTargetLetter(String? letter, int col) {
-    const pool = ['A', 'E', 'I', 'O', 'U', 'R', 'L', 'N', 'T', 'S'];
+  static const List<String> _decoyLetterPool = [
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'R', 'S', 'T', 'U', 'V', 'Y', 'Z',
+  ];
+
+  List<String> _facesForTargetLetter(String letter, int col) {
+    final pool = List<String>.from(_decoyLetterPool)..shuffle(_random);
     final faces = <String>[];
     for (final item in pool) {
       if (item != letter && !faces.contains(item)) faces.add(item);
     }
     final normalizedFaces = faces.take(6).toList();
-    if (letter == null) return normalizedFaces;
     normalizedFaces[_targetRotationCounts[col]] = letter;
     return normalizedFaces;
-  }
-
-  void _spawnFreshCube(int col) {
-    _targetRotationCounts[col] = _random.nextInt(5) + 1;
-    final targetLetter = col < targetLength ? targetWord[col] : null;
-    _grid[spawnRow][col] = Cube(
-      faces: _facesForTargetLetter(targetLetter, col),
-      topFaceIndex: 0,
-      rotationLimit: _rotationsPerCube,
-    );
   }
 
   void _markRolled(int row, int col) {
@@ -419,9 +445,15 @@ class GameProvider extends ChangeNotifier {
       return false;
     }
 
-    // İpucu küpü: ilk dokunuşta hedef harfe atla (ücretsiz)
-    if (cube.type == CubeType.hint &&
-        cube.topFaceIndex != _targetRotationCounts[col]) {
+    // Ipucu kupu: hedef harfe bedavaya atlar ve hedefteyken hic donmez —
+    // aksi halde fazladan dokunus dogru harfi kacirip hak yakiyordu.
+    if (cube.type == CubeType.hint) {
+      if (cube.topFaceIndex == _targetRotationCounts[col]) {
+        _statusMessage = _t('Ipucu kupu zaten hedef harfte.',
+            'The hint cube is already on the target letter.');
+        notifyListeners();
+        return false;
+      }
       cube.topFaceIndex = _targetRotationCounts[col];
       _markRolled(row, col);
       _statusMessage = _t('İpucu küpü hedef harfi gösterdi!',
@@ -435,7 +467,9 @@ class GameProvider extends ChangeNotifier {
     cube.rotate();
     _totalRotationsUsed++;
     _markRolled(row, col);
-    _statusMessage = _t('Küp döndürüldü.', 'Cube rotated.');
+    _statusMessage = isRoundStuck
+        ? roundStuckMessage
+        : _t('Küp döndürüldü.', 'Cube rotated.');
     notifyListeners();
     _soundService.play(SfxKey.rotate);
     _haptic(HapticFeedback.selectionClick);
@@ -471,8 +505,9 @@ class GameProvider extends ChangeNotifier {
 
   /// 'correct' → yeşil | 'present' → sarı | 'absent' → kırmızı | 'empty' → boş
   String wordRowCellState(int col) {
+    if (!isPlayableCol(col)) return 'inactive';
     final cube = _grid[wordRow][col];
-    if (cube == null || col >= targetLength) return 'empty';
+    if (cube == null) return 'empty';
     final letter = cube.currentLetter;
     if (letter == targetWord[col]) return 'correct';
     if (targetWord.contains(letter)) return 'present';
@@ -512,20 +547,10 @@ class GameProvider extends ChangeNotifier {
       return false;
     }
 
-    if (word != targetWord && _submittedWords.contains(word)) {
-      _statusMessage = _t('$word için zaten puan aldın.',
-          'You already scored points for $word.');
-      notifyListeners();
-      _soundService.play(SfxKey.invalid);
-      _haptic(HapticFeedback.heavyImpact);
-      return false;
-    }
-
     if (word == targetWord) {
       _comboCount++;
       if (_comboCount > _bestCombo) _bestCombo = _comboCount;
       _targetWordsFound++;
-      _totalValidWords++;
       final multiplier = comboMultiplier;
       final points = targetLength * 10 * multiplier;
       _score += points;
@@ -549,49 +574,57 @@ class GameProvider extends ChangeNotifier {
       return true;
     }
 
-    _comboCount++;
-    if (_comboCount > _bestCombo) _bestCombo = _comboCount;
-    _totalValidWords++;
-    final multiplier = comboMultiplier;
-    final points = word.length * 10 * multiplier;
-    _score += points;
-    _submittedWords.add(word);
-    for (var col = 0; col < targetLength; col++) {
-      _grid[wordRow][col] = null;
-      _spawnFreshCube(col);
-    }
-    _statusMessage = multiplier > 1
+    // Sözlükte geçerli ama hedef kelime değil: puan yok, küp yenilenmesi yok.
+    // Aksi halde hedef "KARA" iken "ARA" gibi yan kelimeler gönderilerek
+    // sınırsız puan ve combo farm'lanabiliyordu.
+    // Combo, sözlükte olmayan gönderimlerdeki gibi sıfırlanır — kural tek:
+    // hatalı her gönderim zinciri kırar.
+    final hadCombo = _comboCount > 0;
+    _comboCount = 0;
+    _statusMessage = hadCombo
         ? _t(
-            '$word! +$points puan (×$multiplier COMBO!) Yeni küpler geldi.',
-            '$word! +$points points (×$multiplier COMBO!) New cubes arrived.',
+            '$word geçerli bir kelime ama hedef kelime değil. Combo sıfırlandı!',
+            '$word is a valid word but not the target word. Combo reset!',
           )
         : _t(
-            '$word geçerli! +$points puan. Yeni küpler geldi.',
-            '$word is valid! +$points points. New cubes arrived.',
+            '$word geçerli bir kelime ama hedef kelime değil.',
+            '$word is a valid word but not the target word.',
           );
     notifyListeners();
-    _soundService.play(multiplier > 1 ? SfxKey.combo : SfxKey.valid);
+    _soundService.play(SfxKey.invalid);
     _haptic(HapticFeedback.lightImpact);
-    _saveHighScoreIfNeeded();
     return false;
   }
 
   void nextRound() {
-    if (!_isTargetRevealed) return;
+    // Hedef bulunduysa normal ilerleme; bulunmadiysa yalnizca tur kilitlendiginde
+    // pas gecilebilir (puan yok, combo zinciri kirilir).
+    final skipped = !_isTargetRevealed;
+    if (skipped && !isRoundStuck) return;
+    if (skipped) _comboCount = 0;
     _roundNumber++;
     _targetWord = _pickTargetWord(previousWord: _targetWord);
     _isTargetRevealed = false;
-    _statusMessage = _t(
-      'Tur $_roundNumber başladı! [$difficultyLabel] $_rotationsPerCube dönüş hakkı.',
-      'Round $_roundNumber started! [$difficultyLabel] $_rotationsPerCube rotations.',
-    );
+    _statusMessage = skipped
+        ? _t(
+            'Tur pas geçildi. Tur $_roundNumber başladı! [$difficultyLabel] $_rotationsPerCube dönüş hakkı.',
+            'Round skipped. Round $_roundNumber started! [$difficultyLabel] $_rotationsPerCube rotations.',
+          )
+        : _t(
+            'Tur $_roundNumber başladı! [$difficultyLabel] $_rotationsPerCube dönüş hakkı.',
+            'Round $_roundNumber started! [$difficultyLabel] $_rotationsPerCube rotations.',
+          );
     _initializeRound();
     notifyListeners();
   }
 
   void addBonusRotations(int count) {
-    for (var col = 0; col < cols; col++) {
-      _grid[spawnRow][col]?.rotationLimit += count;
+    // Her iki satir da: kelime satirina indirilmis kupler de bonusu almali,
+    // yoksa kupleri indirdikten sonra reklam izleyen oyuncu odulu kaybediyor.
+    for (var row = 0; row < rows; row++) {
+      for (var col = 0; col < cols; col++) {
+        _grid[row][col]?.rotationLimit += count;
+      }
     }
     _statusMessage = _t('+$count ekstra dönüş hakkı kazandın!',
         'You earned +$count extra rotations!');
@@ -602,7 +635,6 @@ class GameProvider extends ChangeNotifier {
     _score = 0;
     _roundNumber = 1;
     _comboCount = 0;
-    _totalValidWords = 0;
     _targetWordsFound = 0;
     _bestCombo = 0;
     _totalRotationsUsed = 0;

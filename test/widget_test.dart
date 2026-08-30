@@ -1,3 +1,4 @@
+import 'package:cubeword/data/word_dictionary.dart';
 import 'package:cubeword/main.dart';
 import 'package:cubeword/providers/game_provider.dart';
 import 'package:flutter/widgets.dart';
@@ -6,6 +7,7 @@ import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('target is hidden and appears after correct guess', (tester) async {
+    await WordDictionary.init();
     await tester.pumpWidget(const MyApp());
 
     expect(find.bySemanticsLabel('Cubeword'), findsOneWidget);
@@ -15,8 +17,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hedef Kelime'), findsOneWidget);
-    expect(find.text('*'), findsNWidgets(6));
-    expect(find.textContaining('Seviye: 1'), findsOneWidget);
+    expect(find.text('*'), findsWidgets);
+    expect(find.textContaining('Tur: 1'), findsOneWidget);
 
     final provider = tester.element(find.byKey(const Key('score-text'))).read<GameProvider>();
 
