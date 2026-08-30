@@ -48,6 +48,14 @@ android {
                 signingConfigs.getByName("release")
             else
                 signingConfigs.getByName("debug")
+            // AGP'nin varsayılanı + kendi keep kurallarımız (proguard-rules.pro
+            // içindeki Room kuralı olmadan release build açılışta çöküyor).
+            // AGP 9 yalnızca "-optimize" varyantını kabul ediyor; optimize'sız
+            // varyant -dontoptimize içerdiği için desteği kaldırıldı.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
