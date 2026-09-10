@@ -172,6 +172,8 @@ class GameProvider extends ChangeNotifier {
   bool _isTargetRevealed = false;
   late String _statusMessage;
   final List<String> _submittedWords = [];
+  // Hedef olmayan geçerli tahminlerle açılan hedef harf pozisyonları (tur başına)
+  final Set<int> _revealedPositions = {};
   int _highScore = 0;
   final SoundService _soundService = SoundService();
 
@@ -195,8 +197,10 @@ class GameProvider extends ChangeNotifier {
   int get activeCols => cols;
   int get targetLength => targetWord.length;
   bool get isTargetRevealed => _isTargetRevealed;
-  String get targetMask =>
-      _isTargetRevealed ? targetWord : List.filled(targetLength, '*').join();
+  String get targetMask => _isTargetRevealed
+      ? targetWord
+      : List.generate(targetLength,
+          (i) => _revealedPositions.contains(i) ? targetWord[i] : '*').join();
   int targetRotationCountAt(int col) => _targetRotationCounts[col];
 
   /// Küp hangi satırda olursa olsun bulunur (kelime satırındaki küpler
@@ -367,6 +371,7 @@ class GameProvider extends ChangeNotifier {
     _rollTicks = List.generate(rows, (_) => List<int>.filled(cols, 0));
     _targetRotationCounts = _buildTargetRotationCounts();
     _submittedWords.clear();
+    _revealedPositions.clear();
 
     final specialCols = _pickSpecialCubeCols();
 
@@ -581,15 +586,43 @@ class GameProvider extends ChangeNotifier {
     // hatalı her gönderim zinciri kırar.
     final hadCombo = _comboCount > 0;
     _comboCount = 0;
-    _statusMessage = hadCombo
-        ? _t(
-            '$word geçerli bir kelime ama hedef kelime değil. Combo sıfırlandı!',
-            '$word is a valid word but not the target word. Combo reset!',
-          )
-        : _t(
-            '$word geçerli bir kelime ama hedef kelime değil.',
-            '$word is a valid word but not the target word.',
-          );
+
+    // Ödül: her YENİ geçerli tahmin hedeften bir gizli harf açar. Aynı kelimeyi
+    // tekrar göndermek harf açmaz, yoksa tek kelimeyle tüm hedef açılırdı.
+    final hidden = [
+      for (var i = 0; i < targetLength; i++)
+        if (!_revealedPositions.contains(i)) i
+    ];
+    // Oyuncunun doğru yerde tutturduğu (yeşil) harfi açmak ipucunu boşa harcar;
+    // önce tutturamadığı pozisyonlardan seç, hepsi yeşilse herhangi bir gizli harf.
+    final unknown = [
+      for (final i in hidden)
+        if (word[i] != targetWord[i]) i
+    ];
+    final pool = unknown.isNotEmpty ? unknown : hidden;
+    final isNewGuess = !_submittedWords.contains(word);
+    int? revealed;
+    if (isNewGuess) {
+      _submittedWords.add(word);
+      if (pool.isNotEmpty) {
+        revealed = pool[_random.nextInt(pool.length)];
+        _revealedPositions.add(revealed);
+      }
+    }
+
+    final base = _t(
+      '$word geçerli bir kelime ama hedef kelime değil.',
+      '$word is a valid word but not the target word.',
+    );
+    final hint = revealed != null
+        ? _t(' İpucu: ${revealed + 1}. harf açıldı!',
+            ' Hint: letter ${revealed + 1} revealed!')
+        : (isNewGuess
+            ? ''
+            : _t(' Bu kelimeyle zaten ipucu aldın.',
+                ' You already got a hint for this word.'));
+    final combo = hadCombo ? _t(' Combo sıfırlandı!', ' Combo reset!') : '';
+    _statusMessage = '$base$hint$combo';
     notifyListeners();
     _soundService.play(SfxKey.invalid);
     _haptic(HapticFeedback.lightImpact);

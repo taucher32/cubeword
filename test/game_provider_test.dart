@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cubeword/data/word_dictionary.dart';
 import 'package:cubeword/models/cube.dart';
 import 'package:cubeword/providers/game_provider.dart';
@@ -239,6 +241,116 @@ void main() {
       expect(provider.submitWord(), isFalse);
       expect(provider.comboCount, 0);
       expect(provider.score, scoreAfterWin, reason: 'yanlis tahmin puan vermez');
+    });
+
+    test('each new valid wrong guess reveals one target letter', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      await WordDictionary.init();
+
+      final provider = GameProvider();
+      const candidates = {
+        3: ['KOD', 'SOL', 'YOL', 'KAR', 'TOP'],
+        4: ['KALE', 'OYUN', 'MASA', 'GECE'],
+      };
+      final wrongs = candidates[provider.targetLength]!
+          .where((w) => w != provider.targetWord)
+          .take(2)
+          .toList();
+
+      void placeInWordRow(String word) {
+        for (var col = 0; col < word.length; col++) {
+          provider.grid[GameProvider.wordRow][col] = Cube(
+            faces: [word[col]],
+            topFaceIndex: 0,
+            rotationLimit: 0,
+          );
+        }
+      }
+
+      int revealedCount() =>
+          provider.targetMask.split('').where((c) => c != '*').length;
+
+      expect(revealedCount(), 0);
+
+      placeInWordRow(wrongs[0]);
+      expect(provider.submitWord(), isFalse);
+      expect(revealedCount(), 1);
+      // Açılan harf hedefteki doğru pozisyonda olmalı
+      for (var i = 0; i < provider.targetLength; i++) {
+        final ch = provider.targetMask[i];
+        if (ch != '*') expect(ch, provider.targetWord[i]);
+      }
+
+      // Aynı kelimeyi tekrar göndermek yeni harf açmaz
+      expect(provider.submitWord(), isFalse);
+      expect(revealedCount(), 1);
+
+      placeInWordRow(wrongs[1]);
+      provider.submitWord();
+      expect(revealedCount(), 2);
+
+      // Yeni turda maske sıfırlanır
+      provider.grid[GameProvider.wordRow].fillRange(0, GameProvider.cols, null);
+      for (var col = 0; col < provider.targetLength; col++) {
+        final cube = provider.grid[GameProvider.spawnRow][col];
+        if (cube == null) continue;
+        var guard = 0;
+        while (cube.currentLetter != provider.targetWord[col] && guard < 8) {
+          provider.rotateCube(GameProvider.spawnRow, col);
+          guard++;
+        }
+        provider.dropCube(col);
+      }
+      expect(provider.submitWord(), isTrue);
+      provider.nextRound();
+      expect(revealedCount(), 0);
+    });
+
+    test('hint never reveals a letter the guess already has in place',
+        () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      await WordDictionary.init();
+      final words = File('assets/words_tr.txt')
+          .readAsLinesSync()
+          .map((w) => w.trim())
+          .where((w) => w.isNotEmpty)
+          .toList();
+
+      var checked = 0;
+      for (var run = 0; run < 30; run++) {
+        final provider = GameProvider();
+        final target = provider.targetWord;
+        // Hedefle en az bir harfi aynı yerde paylaşan, hedef olmayan geçerli kelime
+        final guess = words.firstWhere(
+          (w) =>
+              w.length == target.length &&
+              w != target &&
+              WordDictionary.isValid(w) &&
+              List.generate(w.length, (i) => w[i] == target[i]).contains(true),
+          orElse: () => '',
+        );
+        if (guess.isEmpty) continue;
+
+        for (var col = 0; col < guess.length; col++) {
+          provider.grid[GameProvider.wordRow][col] = Cube(
+            faces: [guess[col]],
+            topFaceIndex: 0,
+            rotationLimit: 0,
+          );
+        }
+        provider.submitWord();
+
+        final mask = provider.targetMask;
+        final opened = [
+          for (var i = 0; i < mask.length; i++)
+            if (mask[i] != '*') i
+        ];
+        expect(opened, hasLength(1));
+        expect(guess[opened.single], isNot(target[opened.single]),
+            reason: '$guess / $target: yeşil harf açılmamalı');
+        checked++;
+      }
+      expect(checked, greaterThan(0));
     });
   });
 }
