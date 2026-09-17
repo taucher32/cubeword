@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/game_language.dart';
+import '../services/ad_service.dart';
 import 'game_screen.dart';
 
 class StartScreen extends StatefulWidget {
@@ -15,6 +16,8 @@ class _StartScreenState extends State<StartScreen> {
   @override
   void initState() {
     super.initState();
+    // İzin formu (gerekiyorsa) açılışta gösterilir; oyun ekranı aynı sonucu bekler
+    AdService.ensureConsent();
     Future<void>.delayed(const Duration(milliseconds: 120), () {
       if (mounted) {
         setState(() {

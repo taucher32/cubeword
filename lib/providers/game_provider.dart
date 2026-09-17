@@ -271,6 +271,8 @@ class GameProvider extends ChangeNotifier {
       '+$bonus Dönüş Hakkı  —  Video İzle', '+$bonus Rotations — Watch Video');
   String get muteSoundTooltip => _t('Sesi kapat', 'Mute sound');
   String get unmuteSoundTooltip => _t('Sesi aç', 'Unmute sound');
+  String get privacySettingsTooltip =>
+      _t('Gizlilik ayarları', 'Privacy settings');
 
   // Tura göre dönüş hakkı: kolay=6, orta=5, zor=4
   int get _rotationsPerCube {

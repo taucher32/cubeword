@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -19,22 +20,112 @@ class AdService {
     return Platform.isIOS ? _testAdUnitIdIOS : _testAdUnitIdAndroid;
   }
 
+  static bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+
+  // --- UMP (AB/İngiltere/İsviçre GDPR izni) ---
+
+  static Future<bool>? _adsAllowed;
+
+  /// İzin akışını uygulama başına bir kez çalıştırır: gerekirse izin formunu
+  /// gösterir, reklam istenebiliyorsa Mobile Ads SDK'yı başlatır. Tüm çağıranlar
+  /// aynı sonucu bekler. Başarısız olursa bir sonraki çağrı yeniden dener.
+  static Future<bool> ensureConsent() =>
+      _adsAllowed ??= _gatherConsent().then((allowed) {
+        if (!allowed) _adsAllowed = null;
+        return allowed;
+      });
+
+  static Future<bool> _gatherConsent() async {
+    if (!_isMobile) return false;
+    try {
+      final done = Completer<void>();
+      ConsentInformation.instance.requestConsentInfoUpdate(
+        _consentParams(),
+        () => ConsentForm.loadAndShowConsentFormIfRequired((error) {
+          if (error != null) debugPrint('İzin formu: ${error.message}');
+          done.complete();
+        }),
+        (error) {
+          debugPrint('İzin bilgisi alınamadı: ${error.message}');
+          done.complete();
+        },
+      );
+      await done.future;
+      // Güncelleme başarısız olsa bile önceki oturumdaki izin geçerli olabilir
+      if (!await ConsentInformation.instance.canRequestAds()) return false;
+      await MobileAds.instance.initialize();
+      return true;
+    } catch (e) {
+      debugPrint('İzin akışı hatası: $e');
+      return false;
+    }
+  }
+
+  static ConsentRequestParameters _consentParams() {
+    // Emülatörde AB kullanıcısı gibi denemek için (yalnızca debug):
+    // flutter run --dart-define=UMP_DEBUG_EEA=true
+    if (kDebugMode && const bool.fromEnvironment('UMP_DEBUG_EEA')) {
+      return ConsentRequestParameters(
+        consentDebugSettings: ConsentDebugSettings(
+          debugGeography: DebugGeography.debugGeographyEea,
+          // Debug coğrafyası yalnızca test cihazlarında geçerli. Kimlik logcat'te
+          // "addTestDeviceHashedId" satırında yazar; bu, Medium_Phone emülatörü.
+          testIdentifiers: ['B3EEABB8EE11C2BE770B684D95219ECB'],
+        ),
+      );
+    }
+    return ConsentRequestParameters();
+  }
+
+  /// AB gibi bölgelerde kullanıcı iznini sonradan değiştirebilmeli;
+  /// true ise arayüz bir "gizlilik ayarları" girişi göstermeli.
+  static Future<bool> isPrivacyOptionsRequired() async {
+    if (!_isMobile) return false;
+    await ensureConsent();
+    try {
+      return await ConsentInformation.instance
+              .getPrivacyOptionsRequirementStatus() ==
+          PrivacyOptionsRequirementStatus.required;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static void showPrivacyOptionsForm({VoidCallback? onDismissed}) {
+    ConsentForm.showPrivacyOptionsForm((error) {
+      if (error != null) debugPrint('Gizlilik formu: ${error.message}');
+      onDismissed?.call();
+    });
+  }
+
+  // --- Ödüllü reklam ---
+
   RewardedAd? _rewardedAd;
   bool _isLoading = false;
+  bool _disposed = false;
 
   bool get isReady => _rewardedAd != null;
 
-  void loadRewardedAd({AdStateCallback? onStateChanged}) {
-    if (!Platform.isAndroid && !Platform.isIOS) return;
+  Future<void> loadRewardedAd({AdStateCallback? onStateChanged}) async {
+    if (!_isMobile) return;
     if (_isLoading || _rewardedAd != null) return;
     _isLoading = true;
+    // İzin alınmadan reklam istemek AB/İngiltere'de politika ihlali
+    if (!await ensureConsent() || _disposed) {
+      _isLoading = false;
+      return;
+    }
     RewardedAd.load(
       adUnitId: _adUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
-          _rewardedAd = ad;
           _isLoading = false;
+          if (_disposed) {
+            ad.dispose();
+            return;
+          }
+          _rewardedAd = ad;
           onStateChanged?.call(true);
         },
         onAdFailedToLoad: (error) {
@@ -73,6 +164,7 @@ class AdService {
   }
 
   void dispose() {
+    _disposed = true;
     _rewardedAd?.dispose();
     _rewardedAd = null;
   }

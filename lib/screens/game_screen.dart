@@ -17,11 +17,15 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   final AdService _adService = AdService();
   bool _adReady = false;
+  bool _privacyOptionsRequired = false;
 
   @override
   void initState() {
     super.initState();
     _adService.loadRewardedAd(onStateChanged: _onAdStateChanged);
+    AdService.isPrivacyOptionsRequired().then((required) {
+      if (mounted) setState(() => _privacyOptionsRequired = required);
+    });
   }
 
   void _onAdStateChanged(bool ready) {
@@ -214,6 +218,19 @@ class _GameScreenState extends State<GameScreen> {
               appBar: AppBar(
                 title: const Text('Cubeword'),
                 actions: [
+                  // Yalnızca izin gereken bölgelerde (AB vb.) görünür
+                  if (_privacyOptionsRequired)
+                    Consumer<GameProvider>(
+                      builder: (ctx, provider, _) => IconButton(
+                        onPressed: () => AdService.showPrivacyOptionsForm(
+                          onDismissed: () => _adService.loadRewardedAd(
+                              onStateChanged: _onAdStateChanged),
+                        ),
+                        enableFeedback: false,
+                        tooltip: provider.privacySettingsTooltip,
+                        icon: const Icon(Icons.privacy_tip_outlined),
+                      ),
+                    ),
                   Consumer<GameProvider>(
                     builder: (ctx, provider, _) => IconButton(
                       onPressed: provider.toggleSound,
