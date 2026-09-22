@@ -1,24 +1,17 @@
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'screens/start_screen.dart';
 import 'data/word_dictionary.dart';
+import 'services/consent_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  if (Platform.isAndroid || Platform.isIOS) {
-    if (!const bool.fromEnvironment('dart.vm.product')) {
-      try {
-        await MobileAds.instance.initialize();
-      } catch (_) {}
-    } else {
-      await MobileAds.instance.initialize();
-    }
-  }
   await WordDictionary.init();
   runApp(const MyApp());
+  // Onay formu uygulama arayüzü açıldıktan sonra gösterilir; MobileAds da
+  // yalnızca onay alındıktan sonra ConsentService içinde başlatılır.
+  ConsentService.gatherConsent();
 }
 
 class MyApp extends StatelessWidget {
