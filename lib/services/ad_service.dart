@@ -6,7 +6,7 @@ import 'consent_service.dart';
 typedef AdStateCallback = void Function(bool isReady);
 
 class AdService {
-  static const String _prodAdUnitId = 'ca-app-pub-8457022819902146/2379024978';
+  static const String _prodAdUnitId = 'ca-app-pub-8457022819902146/7738127392';
 
   // Google'ın resmi test reklam birimi ID'leri — debug/profile derlemelerde
   // gerçek reklam gösterip politika ihlaline yol açmamak için kullanılır.
