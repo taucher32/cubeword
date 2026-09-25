@@ -87,6 +87,12 @@ chosen on the start screen.
   `+3` bonus rotations via `GameProvider.addBonusRotations()`. Uses Google's official test ad unit ID in
   debug/profile builds (`kReleaseMode` check) and the real, hardcoded production ID only in release builds.
 
+- **`lib/services/consent_service.dart`** — Google UMP (GDPR) consent flow. `main()` calls
+  `ConsentService.gatherConsent()` right after `runApp`; `MobileAds.instance.initialize()` runs only once
+  UMP's `canRequestAds()` is true. `AdService` never requests an ad before that (it waits on the
+  `canRequestAds` notifier). The start screen shows a `privacy-options` button when UMP says privacy
+  options are required. `app-ads.txt` at the repo root is the file to host at the developer website root.
+
 ## Notes for changes
 
 - Widget tests rely on specific `Key`s (`score-text`, `word-row-text`, `status-text`, `submit-word`,

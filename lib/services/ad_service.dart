@@ -1,11 +1,12 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'consent_service.dart';
 
 typedef AdStateCallback = void Function(bool isReady);
 
 class AdService {
-  static const String _prodAdUnitId = 'ca-app-pub-8457022819902146/2379024978';
+  static const String _prodAdUnitId = 'ca-app-pub-8457022819902146/7738127392';
 
   // Google'ın resmi test reklam birimi ID'leri — debug/profile derlemelerde
   // gerçek reklam gösterip politika ihlaline yol açmamak için kullanılır.
@@ -21,12 +22,18 @@ class AdService {
 
   RewardedAd? _rewardedAd;
   bool _isLoading = false;
+  VoidCallback? _consentListener;
 
   bool get isReady => _rewardedAd != null;
 
   void loadRewardedAd({AdStateCallback? onStateChanged}) {
     if (!Platform.isAndroid && !Platform.isIOS) return;
     if (_isLoading || _rewardedAd != null) return;
+    // UMP onayı gelmeden reklam istenmez; onay gelince yükleme otomatik yapılır.
+    if (!ConsentService.canRequestAds.value) {
+      _waitForConsent(onStateChanged);
+      return;
+    }
     _isLoading = true;
     RewardedAd.load(
       adUnitId: _adUnitId,
@@ -44,6 +51,25 @@ class AdService {
         },
       ),
     );
+  }
+
+  void _waitForConsent(AdStateCallback? onStateChanged) {
+    if (_consentListener != null) return;
+    void listener() {
+      if (!ConsentService.canRequestAds.value) return;
+      _removeConsentListener();
+      loadRewardedAd(onStateChanged: onStateChanged);
+    }
+
+    _consentListener = listener;
+    ConsentService.canRequestAds.addListener(listener);
+  }
+
+  void _removeConsentListener() {
+    final listener = _consentListener;
+    if (listener == null) return;
+    ConsentService.canRequestAds.removeListener(listener);
+    _consentListener = null;
   }
 
   void showRewardedAd({
@@ -73,6 +99,7 @@ class AdService {
   }
 
   void dispose() {
+    _removeConsentListener();
     _rewardedAd?.dispose();
     _rewardedAd = null;
   }

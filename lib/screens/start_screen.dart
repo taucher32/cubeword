@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/game_language.dart';
+import '../services/consent_service.dart';
 import 'game_screen.dart';
 
 class StartScreen extends StatefulWidget {
@@ -169,6 +170,30 @@ class _StartScreenState extends State<StartScreen> {
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF111827),
                       ),
+                    ),
+                    // Onay formu gerektiren bölgelerde (ör. AB) kullanıcı
+                    // tercihini buradan değiştirebilir.
+                    ValueListenableBuilder<bool>(
+                      valueListenable: ConsentService.privacyOptionsRequired,
+                      builder: (context, isRequired, _) {
+                        if (!isRequired) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 18),
+                          child: TextButton(
+                            key: const Key('privacy-options'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFF111827),
+                            ),
+                            onPressed: ConsentService.showPrivacyOptionsForm,
+                            child: const Text(
+                              'Gizlilik ayarları / Privacy settings',
+                              style: TextStyle(
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
