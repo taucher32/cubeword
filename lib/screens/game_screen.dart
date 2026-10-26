@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/cube.dart';
@@ -479,116 +481,155 @@ class _GameScreenState extends State<GameScreen> {
                       provider.rotateCube(row, col);
                     }
                   },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: cubeSize,
-              height: cubeSize,
-              margin: const EdgeInsets.only(right: 6),
-              decoration: isWordRow
-                  ? BoxDecoration(
-                      color: _wordRowCellColor(provider.wordRowCellState(col)),
-                      border: Border.all(
-                        color: !playable
-                            ? Colors.grey.shade500
-                            : cube == null
-                                ? Colors.orange
-                                : Colors.black54,
-                        width: 1.5,
-                      ),
-                    )
-                  : _spawnCellDecoration(cube, rollTicks),
-              alignment: Alignment.center,
-              child: Stack(
-                children: [
-                  Align(
-                    alignment: Alignment.center,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 220),
-                      switchInCurve:
-                          isWordRow ? Curves.easeOutBack : Curves.easeOut,
-                      switchOutCurve: Curves.easeIn,
-                      transitionBuilder: isWordRow
-                          ? (child, anim) => ScaleTransition(
-                                scale: Tween<double>(begin: 0.4, end: 1.0)
-                                    .animate(anim),
-                                child:
-                                    FadeTransition(opacity: anim, child: child),
-                              )
-                          : (child, anim) => ScaleTransition(
-                                scale: Tween<double>(begin: 0.7, end: 1.0)
-                                    .animate(anim),
-                                child:
-                                    FadeTransition(opacity: anim, child: child),
-                              ),
-                      child: Text(
-                        cube?.currentLetter ??
-                            (isWordRow && playable ? '_' : ''),
-                        key: ValueKey(
-                          isWordRow
-                              ? 'w-$col-${cube?.currentLetter ?? "empty"}'
-                              : 's-$col-${cube?.currentLetter ?? "empty"}-$rollTicks',
+            child: Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: _cubeFlip(
+                enabled: !isWordRow,
+                flipKey: ValueKey(
+                    'f-$col-${cube?.currentLetter ?? "empty"}-$rollTicks'),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: cubeSize,
+                  height: cubeSize,
+                  decoration: isWordRow
+                      ? BoxDecoration(
+                          color:
+                              _wordRowCellColor(provider.wordRowCellState(col)),
+                          border: Border.all(
+                            color: !playable
+                                ? Colors.grey.shade500
+                                : cube == null
+                                    ? Colors.orange
+                                    : Colors.black54,
+                            width: 1.5,
+                          ),
+                        )
+                      : _spawnCellDecoration(cube, rollTicks),
+                  alignment: Alignment.center,
+                  child: Stack(
+                    children: [
+                      Align(
+                        alignment: Alignment.center,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          switchInCurve:
+                              isWordRow ? Curves.easeOutBack : Curves.easeOut,
+                          switchOutCurve: Curves.easeIn,
+                          // Spawn satırında dönüşü _cubeFlip yapar; burası
+                          // yalnızca kelime satırında devreye girer.
+                          transitionBuilder: (child, anim) => ScaleTransition(
+                            scale: Tween<double>(begin: 0.4, end: 1.0)
+                                .animate(anim),
+                            child: FadeTransition(opacity: anim, child: child),
+                          ),
+                          child: Text(
+                            cube?.currentLetter ??
+                                (isWordRow && playable ? '_' : ''),
+                            key: ValueKey(
+                              isWordRow
+                                  ? 'w-$col-${cube?.currentLetter ?? "empty"}'
+                                  : 's-$col-${cube?.currentLetter ?? "empty"}-$rollTicks',
+                            ),
+                            style: TextStyle(
+                                fontSize: cubeSize * 0.44,
+                                fontWeight: FontWeight.w700),
+                          ),
                         ),
-                        style: TextStyle(
-                            fontSize: cubeSize * 0.44,
-                            fontWeight: FontWeight.w700),
                       ),
-                    ),
+
+                      // Özel küp ikonu (sol üst)
+                      if (!isWordRow &&
+                          cube != null &&
+                          cube.type != CubeType.normal)
+                        Positioned(
+                          left: 1,
+                          top: 1,
+                          child: Icon(
+                            cube.type == CubeType.joker
+                                ? Icons.star
+                                : Icons.lightbulb,
+                            size: cubeSize * 0.22,
+                            color: cube.type == CubeType.joker
+                                ? Colors.amber.shade700
+                                : Colors.blue.shade600,
+                          ),
+                        ),
+
+                      // Kalan dönüş hakkı (sağ alt)
+                      if (!isWordRow && cube != null)
+                        Positioned(
+                          right: 2,
+                          bottom: 2,
+                          child: Text(
+                            '${cube.rotationLimit}',
+                            style: TextStyle(
+                              fontSize: cubeSize * 0.18,
+                              fontWeight: FontWeight.bold,
+                              color: cube.rotationLimit == 0
+                                  ? Colors.red
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+
+                      // Renk körü dostu durum ikonu (sağ üst)
+                      if (isWordRow &&
+                          cube != null &&
+                          provider.wordRowCellState(col) != 'empty')
+                        Positioned(
+                          right: 2,
+                          top: 2,
+                          child: Icon(
+                            _wordRowStateIcon(provider.wordRowCellState(col)),
+                            size: cubeSize * 0.26,
+                            color: Colors.black87,
+                          ),
+                        ),
+                    ],
                   ),
-
-                  // Özel küp ikonu (sol üst)
-                  if (!isWordRow &&
-                      cube != null &&
-                      cube.type != CubeType.normal)
-                    Positioned(
-                      left: 1,
-                      top: 1,
-                      child: Icon(
-                        cube.type == CubeType.joker
-                            ? Icons.star
-                            : Icons.lightbulb,
-                        size: cubeSize * 0.22,
-                        color: cube.type == CubeType.joker
-                            ? Colors.amber.shade700
-                            : Colors.blue.shade600,
-                      ),
-                    ),
-
-                  // Kalan dönüş hakkı (sağ alt)
-                  if (!isWordRow && cube != null)
-                    Positioned(
-                      right: 2,
-                      bottom: 2,
-                      child: Text(
-                        '${cube.rotationLimit}',
-                        style: TextStyle(
-                          fontSize: cubeSize * 0.18,
-                          fontWeight: FontWeight.bold,
-                          color: cube.rotationLimit == 0
-                              ? Colors.red
-                              : Colors.grey.shade600,
-                        ),
-                      ),
-                    ),
-
-                  // Renk körü dostu durum ikonu (sağ üst)
-                  if (isWordRow &&
-                      cube != null &&
-                      provider.wordRowCellState(col) != 'empty')
-                    Positioned(
-                      right: 2,
-                      top: 2,
-                      child: Icon(
-                        _wordRowStateIcon(provider.wordRowCellState(col)),
-                        size: cubeSize * 0.26,
-                        color: Colors.black87,
-                      ),
-                    ),
-                ],
+                ),
               ),
             ),
           ),
         );
       }),
+    );
+  }
+
+  // Küpün tamamını çapraz eksende yuvarlar: çıkan yüz 0°→90°, giren yüz
+  // -90°→0° (AnimatedSwitcher çıkan çocukta anim'i 1→0 oynatır).
+  Widget _cubeFlip({
+    required bool enabled,
+    required Key flipKey,
+    required Widget child,
+  }) {
+    if (!enabled) return child;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      transitionBuilder: (child, anim) {
+        final isIncoming = child.key == flipKey;
+        return AnimatedBuilder(
+          animation: anim,
+          child: child,
+          builder: (context, child) {
+            final angle =
+                (1 - anim.value) * math.pi / 2 * (isIncoming ? -1 : 1);
+            return Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.004) // perspektif
+                // Ekseni 45° çevirip X'te döndür: çapraz eksende dönüş
+                ..rotateZ(math.pi / 4)
+                ..rotateX(angle)
+                ..rotateZ(-math.pi / 4),
+              child: child,
+            );
+          },
+        );
+      },
+      child: KeyedSubtree(key: flipKey, child: child),
     );
   }
 
