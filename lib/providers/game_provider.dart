@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/word_dictionary.dart';
+import '../data/word_translations.dart';
 import '../models/cube.dart';
 import '../models/game_language.dart';
 import '../services/sound_service.dart';
@@ -201,6 +202,9 @@ class GameProvider extends ChangeNotifier {
       ? targetWord
       : List.generate(targetLength,
           (i) => _revealedPositions.contains(i) ? targetWord[i] : '*').join();
+  // Hedef bulununca gösterilen, diğer dildeki karşılık
+  String? get targetTranslation =>
+      _isTargetRevealed ? WordTranslations.of(targetWord, language) : null;
   int targetRotationCountAt(int col) => _targetRotationCounts[col];
 
   /// Küp hangi satırda olursa olsun bulunur (kelime satırındaki küpler
@@ -217,12 +221,13 @@ class GameProvider extends ChangeNotifier {
       if (cube == null) continue;
       // İpucu küpü her zaman bedavaya hedefe atlayabilir
       if (cube.type == CubeType.hint) continue;
-      final needed = (_targetRotationCounts[col] - cube.topFaceIndex) %
-          cube.faces.length;
+      final needed =
+          (_targetRotationCounts[col] - cube.topFaceIndex) % cube.faces.length;
       if (needed > cube.rotationLimit) return true;
     }
     return false;
   }
+
   String get currentWord => List.generate(
         targetLength,
         (col) => _grid[wordRow][col]?.currentLetter ?? '_',
@@ -419,8 +424,29 @@ class GameProvider extends ChangeNotifier {
   }
 
   static const List<String> _decoyLetterPool = [
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-    'N', 'O', 'P', 'R', 'S', 'T', 'U', 'V', 'Y', 'Z',
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'G',
+    'H',
+    'I',
+    'J',
+    'K',
+    'L',
+    'M',
+    'N',
+    'O',
+    'P',
+    'R',
+    'S',
+    'T',
+    'U',
+    'V',
+    'Y',
+    'Z',
   ];
 
   List<String> _facesForTargetLetter(String letter, int col) {

@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:cubeword/data/word_dictionary.dart';
+import 'package:cubeword/data/word_translations.dart';
 import 'package:cubeword/models/cube.dart';
+import 'package:cubeword/models/game_language.dart';
 import 'package:cubeword/providers/game_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -13,7 +15,8 @@ void main() {
       expect(provider.grid.length, 2);
       expect(provider.activeCols, 6);
       expect(provider.targetLength, greaterThanOrEqualTo(3));
-      expect(provider.grid[GameProvider.spawnRow].where((c) => c != null).length,
+      expect(
+          provider.grid[GameProvider.spawnRow].where((c) => c != null).length,
           provider.targetLength);
       expect(provider.currentWord, '_' * provider.targetLength);
       expect(provider.targetMask, '*' * provider.targetLength);
@@ -72,6 +75,45 @@ void main() {
       expect(provider.targetWord == firstTarget, isFalse);
     });
 
+    test('translation appears only after target is found', () {
+      for (final language in GameLanguage.values) {
+        final provider = GameProvider(language: language);
+        expect(provider.targetTranslation, isNull);
+
+        for (var col = 0; col < provider.targetLength; col++) {
+          for (var turn = 0;
+              turn < provider.targetRotationCountAt(col);
+              turn++) {
+            provider.rotateCube(GameProvider.spawnRow, col);
+          }
+          provider.dropCube(col);
+        }
+        expect(provider.submitWord(), isTrue);
+        expect(provider.targetTranslation, isNotEmpty);
+      }
+    });
+
+    test('every target word in the pools has a translation', () {
+      final source =
+          File('lib/providers/game_provider.dart').readAsStringSync();
+      final pools =
+          RegExp(r'_(easy|medium|hard)Words(Tr|En) = \[(.*?)\];', dotAll: true)
+              .allMatches(source)
+              .toList();
+      expect(pools.length, 6);
+
+      for (final pool in pools) {
+        final language =
+            pool.group(2) == 'En' ? GameLanguage.en : GameLanguage.tr;
+        for (final word in RegExp(r"'([A-Z]+)'")
+            .allMatches(pool.group(3)!)
+            .map((m) => m.group(1)!)) {
+          expect(WordTranslations.of(word, language), isNotNull,
+              reason: '$word çevirisi yok');
+        }
+      }
+    });
+
     test('target letters appear after different rotation counts', () {
       final provider = GameProvider();
       final counts = List.generate(
@@ -85,7 +127,9 @@ void main() {
         final cube = provider.grid[GameProvider.spawnRow][col]!;
         expect(cube.currentLetter == provider.targetWord[col], isFalse);
 
-        for (var turn = 1; turn <= provider.targetRotationCountAt(col); turn++) {
+        for (var turn = 1;
+            turn <= provider.targetRotationCountAt(col);
+            turn++) {
           provider.rotateCube(GameProvider.spawnRow, col);
           expect(
             cube.currentLetter == provider.targetWord[col],
@@ -95,7 +139,8 @@ void main() {
       }
     });
 
-    test('target is always reachable within each cube rotation limit', () async {
+    test('target is always reachable within each cube rotation limit',
+        () async {
       // Zor turlarda donus hakki 4'e duserken hedef 5 donus uzakta
       // kalabiliyordu -> o sutun asla dogru harfe gelemiyor, tur kilitleniyordu.
       TestWidgetsFlutterBinding.ensureInitialized();
@@ -240,7 +285,8 @@ void main() {
 
       expect(provider.submitWord(), isFalse);
       expect(provider.comboCount, 0);
-      expect(provider.score, scoreAfterWin, reason: 'yanlis tahmin puan vermez');
+      expect(provider.score, scoreAfterWin,
+          reason: 'yanlis tahmin puan vermez');
     });
 
     test('each new valid wrong guess reveals one target letter', () async {

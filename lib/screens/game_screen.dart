@@ -346,6 +346,17 @@ class _GameScreenState extends State<GameScreen> {
                                 );
                               }).toList(),
                             ),
+                            if (provider.targetTranslation != null) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                provider.targetTranslation!,
+                                key: const Key('target-translation'),
+                                style: TextStyle(
+                                  fontSize: cubeSize * 0.4,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
 
                             // Kalan boşluğu dolduran esnek alan
                             const Spacer(),
